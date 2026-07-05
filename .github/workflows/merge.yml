@@ -1,27 +1,27 @@
-name: Merge VPN Links Separate
+name: Separate VPN Subscriptions
 on:
   schedule:
-    - cron: '0 * * * *' # Запуск каждый час
+    - cron: '0 * * * *' # Автозапуск каждый час
   workflow_dispatch: # Кнопка для ручного запуска
 
 jobs:
-  merge-separate:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
       
-      - name: First Update (Minute 0)
+      - name: Fetch and Merge Links
         run: |
-          # 1. Собираем первые 3 ссылки в configs.txt
+          # Файл 1: Оставляем старые 3 ссылки
           curl -s "https://githubusercontent.com" > configs.txt
           echo "" >> configs.txt
           curl -s "https://githubusercontent.com" >> configs.txt
           echo "" >> configs.txt
           curl -s "https://githubusercontent.com" >> configs.txt
           
-          # 2. Собираем новые 5 ссылок в configs2.txt
+          # Файл 2: Запихиваем новые 5 ссылок
           curl -s "https://githubusercontent.com" > configs2.txt
           echo "" >> configs2.txt
           curl -s "https://githubusercontent.com" >> configs2.txt
@@ -31,38 +31,11 @@ jobs:
           curl -s "https://githubusercontent.com" >> configs2.txt
           echo "" >> configs2.txt
           curl -s "https://githubusercontent.com" >> configs2.txt
-          
-          # Сохраняем изменения на GitHub
+
+      - name: Push updates to repo
+        run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add configs.txt configs2.txt
-          git commit -m "Update configs and configs2 separately (part 1)" || echo "No changes"
-          git push
-
-      - name: Wait for 30 minutes
-        run: sleep 1800 # Ждем 30 минут
-
-      - name: Second Update (Minute 30)
-        run: |
-          git pull # Скачиваем изменения перед вторым обновлением
-          
-          # Повторяем процедуру для обновления в середине часа
-          curl -s "https://githubusercontent.com" > configs.txt
-          echo "" >> configs.txt
-          curl -s "https://githubusercontent.com" >> configs.txt
-          echo "" >> configs.txt
-          curl -s "https://githubusercontent.com" >> configs.txt
-          
-          curl -s "https://githubusercontent.com" > configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          
-          git add configs.txt configs2.txt
-          git commit -m "Update configs and configs2 separately (part 2)" || echo "No changes"
+          git commit -m "Update subscriptions" || echo "No changes to commit"
           git push
