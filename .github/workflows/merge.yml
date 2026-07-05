@@ -1,8 +1,8 @@
 name: Separate VPN Subscriptions
 on:
   schedule:
-    - cron: '0 * * * *' # Автозапуск каждый час
-  workflow_dispatch: # Кнопка для ручного запуска
+    - cron: '0 * * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,14 +14,11 @@ jobs:
       
       - name: Fetch and Merge Links
         run: |
-          # Файл 1: Оставляем старые 3 ссылки
           curl -s "https://githubusercontent.com" > configs.txt
           echo "" >> configs.txt
           curl -s "https://githubusercontent.com" >> configs.txt
           echo "" >> configs.txt
           curl -s "https://githubusercontent.com" >> configs.txt
-          
-          # Файл 2: Запихиваем новые 5 ссылок
           curl -s "https://githubusercontent.com" > configs2.txt
           echo "" >> configs2.txt
           curl -s "https://githubusercontent.com" >> configs2.txt
@@ -35,7 +32,7 @@ jobs:
       - name: Push updates to repo
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "github-actions[bot]@://github.com"
           git add configs.txt configs2.txt
-          git commit -m "Update subscriptions" || echo "No changes to commit"
+          git commit -m "Update subscriptions" || echo "No changes"
           git push
