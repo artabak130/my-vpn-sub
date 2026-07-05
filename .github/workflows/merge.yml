@@ -1,0 +1,27 @@
+name: Merge VPN Links
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Будет автоматически обновляться каждые 6 часов
+  workflow_dispatch: # Кнопка для ручного запуска в любое время
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and Combine
+        run: |
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_SS%2BAll_RUS.txt" > configs.txt
+          echo "" >> configs.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS.txt" >> configs.txt
+          echo "" >> configs.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS_mobile.txt" >> configs.txt
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          git add configs.txt
+          git commit -m "Update configs" || exit 0
+          git push
