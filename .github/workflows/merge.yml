@@ -1,27 +1,43 @@
-name: Merge VPN Links
+name: Merge VPN Links Every 30 Min
 on:
   schedule:
-    - cron: '0 */6 * * *' # Будет автоматически обновляться каждые 6 часов
-  workflow_dispatch: # Кнопка для ручного запуска в любое время
+    - cron: '0 * * * *' # Запуск ровно в начале каждого часа
+  workflow_dispatch:
 
 jobs:
-  merge:
+  merge-loop:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Download and Combine
+      
+      - name: First Update (Minute 0)
         run: |
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_SS%2BAll_RUS.txt" > configs.txt
+          curl -s "https://githubusercontent.com" > configs.txt
           echo "" >> configs.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS.txt" >> configs.txt
+          curl -s "https://githubusercontent.com" >> configs.txt
           echo "" >> configs.txt
-          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/BLACK_VLESS_RUS_mobile.txt" >> configs.txt
-      - name: Commit and Push
-        run: |
+          curl -s "https://githubusercontent.com" >> configs.txt
+          
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@://github.com"
           git add configs.txt
-          git commit -m "Update configs" || exit 0
+          git commit -m "Update configs (part 1)" || echo "No changes"
+          git push
+
+      - name: Wait for 30 minutes
+        run: sleep 1800 # Ждем ровно 30 минут (1800 секунд)
+
+      - name: Second Update (Minute 30)
+        run: |
+          git pull # Скачиваем изменения, если они были
+          curl -s "https://githubusercontent.com" > configs.txt
+          echo "" >> configs.txt
+          curl -s "https://githubusercontent.com" >> configs.txt
+          echo "" >> configs.txt
+          curl -s "https://githubusercontent.com" >> configs.txt
+          
+          git add configs.txt
+          git commit -m "Update configs (part 2)" || echo "No changes"
           git push
