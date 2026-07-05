@@ -19,23 +19,17 @@ jobs:
       
       - name: Fetch and Merge Links
         run: |
-          # Файл 1: Ваши первые 3 ссылки
-          curl -s "https://githubusercontent.com" > configs.txt
+          # Файл 1: Первые 3 ссылки
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile-2.txt" > configs.txt
           echo "" >> configs.txt
-          curl -s "https://githubusercontent.com" >> configs.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/Vless-Reality-White-Lists-Rus-Mobile.txt" >> configs.txt
           echo "" >> configs.txt
-          curl -s "https://githubusercontent.com" >> configs.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-all.txt" >> configs.txt
           
-          # Файл 2: Ваши новые 5 ссылок
-          curl -s "https://githubusercontent.com" > configs2.txt
+          # Файл 2: Оставшиеся 2 ссылки
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-CIDR-RU-checked.txt" > configs2.txt
           echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
-          echo "" >> configs2.txt
-          curl -s "https://githubusercontent.com" >> configs2.txt
+          curl -s "https://raw.githubusercontent.com/igareck/vpn-configs-for-russia/refs/heads/main/WHITE-SNI-RU-all.txt" >> configs2.txt
 
       - name: Push updates to repo
         run: |
