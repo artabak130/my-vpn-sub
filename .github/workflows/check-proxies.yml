@@ -1,0 +1,106 @@
+name: Check and prune unreachable proxies
+
+on:
+  push:
+    paths:
+      - 'black.txt'
+      - 'white.txt'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Install openssl
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y openssl
+
+      - name: Check and remove dead proxies (black.txt & white.txt)
+        env:
+          TIMEOUT: 10
+        run: |
+          set -euo pipefail
+          files=(black.txt white.txt)
+          changed=false
+
+          for f in "${files[@]}"; do
+            [ -f "$f" ] || continue
+            echo "Processing $f"
+            cp "$f" "$f.bak"
+            tmp="$(mktemp)"
+            while IFS= read -r raw || [ -n "$raw" ]; do
+              line="${raw%%#*}"            # убрать комментарии справа
+              line="${line%$'\r'}"
+              line="${line#"${line%%[![:space:]]*}"}"
+              line="${line%"${line##*[![:space:]]}"}"
+              if [ -z "$line" ]; then
+                continue
+              fi
+
+              low=$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')
+
+              # Пропускаем потенциально QUIC/Reality/Hysteria/UDP/сложные транспорт-строки
+              if printf '%s' "$low" | grep -qE 'quic|reality|hysteria|hy2|udp|kcp'; then
+                echo "  skipped (udp/quic/complex): $line"
+                echo "$line" >> "$tmp"
+                continue
+              fi
+
+              # Найти host:port в строке (IPv4, IPv6 в [..], или домен)
+              if [[ "$line" =~ ([0-9a-fA-F:\.\[\]a-zA-Z_-]+)[\,:]([0-9]{1,5}) ]]; then
+                host="${BASH_REMATCH[1]}"
+                port="${BASH_REMATCH[2]}"
+                host="${host#\[}"
+                host="${host%\]}"
+                echo "  probing ${host}:${port}"
+                alive=false
+
+                # Быстрая TCP проверка через /dev/tcp
+                if timeout "${TIMEOUT}" bash -c ">/dev/tcp/${host}/${port}" 2>/dev/null; then
+                  alive=true
+                else
+                  # Попробуем TLS handshake (openssl) — полезно для trojan/vless+tls
+                  if timeout "${TIMEOUT}" openssl s_client -connect "${host}:${port}" -servername "${host}" < /dev/null >/dev/null 2>&1; then
+                    alive=true
+                  fi
+                fi
+
+                if $alive; then
+                  echo "$line" >> "$tmp"
+                  echo "    ok"
+                else
+                  echo "    DEAD -> removed: $line"
+                fi
+              else
+                # Не удалось распарсить host:port — сохраняем строку, чтобы не потерять сложные конфигурации
+                echo "  keep (unparsed): $line"
+                echo "$line" >> "$tmp"
+              fi
+            done < "$f"
+
+            if ! cmp -s "$tmp" "$f"; then
+              mv "$tmp" "$f"
+              git add "$f"
+              changed=true
+              echo "$f updated (backup: $f.bak)"
+            else
+              rm -f "$tmp"
+              echo "$f unchanged"
+            fi
+          done
+
+          if [ "$changed" = true ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "ci: remove unreachable proxies (auto-check)" || echo "No changes to commit"
+            git push origin HEAD:$(git rev-parse --abbrev-ref HEAD)
+          else
+            echo "No changes to commit"
+          fi
