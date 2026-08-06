@@ -1,0 +1,92 @@
+name: Dedupe proxies (remove identical entries)
+
+on:
+  push:
+    paths:
+      - 'black.txt'
+      - 'white.txt'
+  workflow_dispatch:
+
+jobs:
+  dedupe:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Remove duplicate proxies from black.txt and white.txt
+        run: |
+          set -euo pipefail
+          files=(black.txt white.txt)
+          declare -A seen
+          changed=false
+          total_removed=0
+
+          for f in "${files[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "File not found, skipping: $f"
+              continue
+            fi
+
+            echo "Processing $f"
+            cp "$f" "$f.bak"
+            tmp="$(mktemp)"
+            removed=0
+
+            # Read file line-by-line, preserve blank lines and comments,
+            # but use the part before '#' (trimmed) as key for duplicates.
+            while IFS= read -r raw || [ -n "$raw" ]; do
+              # Preserve original line (including comments and spacing)
+              original="$raw"
+
+              # trim CR
+              original="${original%$'\r'}"
+
+              # compute key: part before first '#' trimmed (for duplicate detection)
+              key="${original%%#*}"
+              # trim leading/trailing whitespace from key
+              key="${key#"${key%%[![:space:]]*}"}"
+              key="${key%"${key##*[![:space:]]}"}"
+
+              if [ -z "$key" ]; then
+                # empty or pure comment line: keep as-is
+                printf '%s\n' "$original" >> "$tmp"
+                continue
+              fi
+
+              # case-sensitive comparison (if you want case-insensitive, lower the key)
+              if [ -z "${seen[$key]+x}" ]; then
+                seen[$key]=1
+                printf '%s\n' "$original" >> "$tmp"
+              else
+                echo "  duplicate -> removed: $original"
+                removed=$((removed+1))
+              fi
+            done < "$f"
+
+            total_removed=$((total_removed + removed))
+
+            if ! cmp -s "$tmp" "$f"; then
+              mv "$tmp" "$f"
+              git add "$f"
+              changed=true
+              echo "$f updated (backup: $f.bak). Removed: $removed"
+            else
+              rm -f "$tmp"
+              echo "$f unchanged. Removed: $removed"
+            fi
+          done
+
+          echo "Total removed duplicates: $total_removed"
+
+          if [ "$changed" = true ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "ci: remove duplicate proxy entries (dedupe)" || echo "No changes to commit"
+            git push origin HEAD:$(git rev-parse --abbrev-ref HEAD)
+          else
+            echo "No changes to commit"
+          fi
